@@ -1,0 +1,225 @@
+
+Response to reviewers · TEX
+% Response to Reviewers
+% Copy this into a new .tex file in Overleaf
+
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{RESPONSE TO REVIEWERS}}\\[0.5cm]
+Journal of Biomedical Informatics\\[0.3cm]
+\textit{Manuscript: Generative Modeling of Clinical Time Series via Latent Stochastic Differential Equations}\\[0.3cm]
+Manuscript ID: [Your ID Here]
+\end{center}
+
+\vspace{1cm}
+
+Dear Dr. Liu,
+
+We thank you and the reviewers for the thoughtful and constructive feedback on our manuscript. We have carefully addressed each comment and believe the revisions have substantially strengthened our work. Below, we provide detailed point-by-point responses to all reviewer comments.
+
+\section*{SUMMARY OF MAJOR CHANGES}
+
+\textcolor{blue}{[Summarize 5-7 key changes here. Examples:]}
+
+\begin{itemize}
+\item Added [X] additional baseline methods for comprehensive comparison
+\item Conducted ablation studies to isolate contributions of key components
+\item Substantially revised Sections 3-4 to clarify mathematical notation
+\item Added Algorithm boxes for training and inference procedures
+\item Provided public code repository for reproducibility
+\item Added clinical interpretation discussion with literature examples
+\item Added mandatory items: Statement of Significance and Graphical Abstract
+\end{itemize}
+
+\newpage
+
+\section*{REVIEWER 1}
+
+\subsection*{Comment 1.a) Reproducibility and Code Availability}
+
+\textit{The manuscript lacks a source code availability statement. Given the complexity of neural SDEs and variational inference, reproducibility is limited without access to implementation details or code. The authors should provide a public code repository or, at minimum, a clear code availability statement with additional implementation details.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here: Explain that you have made code publicly available, where it is hosted, what it includes, etc.]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
+\item \textcolor{blue}{Supplementary Material: [Describe additions]}
+\end{itemize}
+
+\subsection*{Comment 1.b) Model Description Clarity}
+
+\textit{The distinction between the generative SDE and augmented SDE, as well as their roles during training and inference, could be described more explicitly.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
+\end{itemize}
+
+\subsection*{Comment 1.c) Baseline Comparisons}
+
+\textit{Additional clarification is needed regarding hyperparameter tuning and whether uncertainty-aware baseline methods were considered.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
+\end{itemize}
+
+\subsection*{Comment 1.d) Clinical Interpretation of Uncertainty}
+
+\textit{The manuscript would benefit from a brief discussion or example illustrating how uncertainty estimates could inform clinical decision-making.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here: Reference the examples we discussed - sepsis prediction, diabetic retinopathy, glucose monitoring, etc.]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes - added Discussion section with clinical examples]}
+\end{itemize}
+
+\subsection*{Comment 1.e) Minor Issues - Terminology Inconsistency}
+
+\textit{Inconsistent terminology: ``time series'' vs. ``timeseries''}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Throughout manuscript: [Standardized to ``time series'']}
+\end{itemize}
+
+\newpage
+
+\section*{REVIEWER 2}
+
+\subsection*{Comment 2.1) Mathematical Notation Clarity}
+
+\textit{The mathematical formulation in Sections 3-4 is difficult to follow due to inconsistent and insufficiently defined notation. In particular, the relationships among treatment-related variables are unclear. For example, in the equation preceding Eq. (1), treatments appear to be described as a discrete-time sequence, but the definition does not clearly specify whether they are defined in discrete or continuous time.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe comprehensive revision of notation]}
+\end{itemize}
+
+\subsection*{Comment 2.2) Limited Baseline Comparisons}
+
+\textit{The baseline comparisons are limited. The paper includes latent ODE and latent LSTM as baselines. While the results demonstrate the advantage of latent SDE, the empirical claims would be more convincing if additional strong baselines were included. For instance, probabilistic time series forecasting methods conditioned on treatment/control inputs should be considered.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe new baseline additions]}
+\end{itemize}
+
+\subsection*{Comment 2.3) Missing Algorithmic Descriptions}
+
+\textit{The paper lacks algorithmic descriptions. I did not find any algorithm box in the main body. Including one or more algorithm boxes would substantially improve readability, particularly for clarifying the training procedure and the inference/forecasting process.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Added Algorithm 1: Training procedure]}
+\item \textcolor{blue}{Lines [X-Y]: [Added Algorithm 2: Inference/forecasting procedure]}
+\end{itemize}
+
+\subsection*{Comment 2.4) No Ablation Study}
+
+\textit{No ablation study is provided. This raises the question of which components of the proposed framework contribute most to the performance gains. An ablation study would be helpful to isolate the impact of key design choices (e.g., stochastic dynamics, variational posterior design, treatment encoding).}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Added ablation study results]}
+\item \textcolor{blue}{Table [X]: [Added ablation study table]}
+\end{itemize}
+
+\subsection*{Comment 2.5) Limited Experimental Scope}
+
+\textit{The experimental evaluation is limited in scope. The paper evaluates the method on two datasets (one synthetic and one real-world). This may not be sufficient to demonstrate robustness and general applicability. Additional datasets would strengthen the empirical validation.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Lines [X-Y]: [Describe changes - added dataset or justified scope]}
+\end{itemize}
+
+\subsection*{Comment 2.6) Missing Derivation}
+
+\textit{The derivation of inequality (7) is missing. I did not see a proof or derivation of Eq. (7), and this inequality may not be straightforward to all readers. The authors should either provide a derivation in the paper/appendix or cite a reference where the proof is given.}
+
+\textbf{Response:}
+
+\textcolor{blue}{[Your response here]}
+
+\textbf{Changes in manuscript:}
+\begin{itemize}
+\item \textcolor{blue}{Appendix [X]: [Added derivation]}
+\end{itemize}
+
+\newpage
+
+\section*{MANDATORY SUBMISSION REQUIREMENTS}
+
+\subsection*{Statement of Significance}
+We have added the required Statement of Significance table at the end of the Introduction section (page [X]).
+
+\subsection*{Graphical Abstract}
+We have created a graphical abstract that visually summarizes our framework (submitted as a separate file).
+
+\subsection*{Line Spacing}
+The revised manuscript uses 1.5 line spacing throughout.
+
+\subsection*{Source Files}
+We are submitting the manuscript source files in LaTeX format along with all figure files in TIF/EPS format as requested.
+
+\vspace{1cm}
+
+We thank the reviewers again for their valuable feedback, which has significantly improved our manuscript. We believe these revisions have addressed all concerns and strengthened the contribution of our work.
+
+\vspace{0.5cm}
+
+Sincerely,\\
+
+
+Muhammad Aslanimoghanloo
+
+Ahmed ElGazzar
+
+Marcel van Gerven
+
+\end{document}

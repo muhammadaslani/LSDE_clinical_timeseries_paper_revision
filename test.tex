@@ -1,0 +1,33 @@
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\begin{algorithm}[t]
+\caption{Training the Latent SDE Model}
+\label{alg:training}
+\begin{algorithmic}[1]
+\REQUIRE Patient data $\mathcal{D} = \{(y_n, u_n, t_n)\}_{n=1}^{N}$; learning rate $\eta$; KL annealing schedule $\lambda(\cdot)$
+\ENSURE Optimized parameters $\theta$, $\phi$
+
+\STATE Initialize model parameters $\theta$ (generative), $\phi$ (variational)
+\FOR{epoch $= 1, \ldots, E$}
+    \FOR{each mini-batch $(y, u, t)$ from $\mathcal{D}$}
+        \STATE \textit{\textcolor{gray}{\% Encoding}}
+        \STATE $(\mu_\phi, \sigma^2_\phi), \; c(t) \leftarrow \textsc{ObsEncoder}_\phi(y)$ \hfill $\triangleright$ Initial condition \& context
+        \STATE $\tilde{u}(t) \leftarrow \textsc{CtrlEncoder}_\phi(u)$ \hfill $\triangleright$ Encode treatment inputs
+        \STATE \textit{\textcolor{gray}{\% Sample initial condition via reparameterization}}
+        \STATE $\tilde{x}(0) \leftarrow \textsc{InitMap}(\mu_\phi + \epsilon \odot \sqrt{\sigma^2_\phi}), \quad \epsilon \sim \mathcal{N}(0, I)$
+        \STATE \textit{\textcolor{gray}{\% Solve augmented SDE forward in time}}
+        \STATE $\{\tilde{x}(t_i)\}_{i=1}^{T}, \; \text{KL}_{\text{path}} \leftarrow \textsc{SDESolve}\big(\nu_\phi(\tilde{x}, \tilde{u}, c), \; \sigma_\theta(\tilde{x}, \tilde{u}), \; \tilde{x}(0), \; [t_1, \ldots, t_T]\big)$
+        \STATE \textit{\textcolor{gray}{\% Decode to observation space}}
+        \STATE $\hat{y}_i \leftarrow \textsc{ObsDecoder}_\theta(\tilde{x}(t_i))$ for $i = 1, \ldots, T$
+        \STATE \textit{\textcolor{gray}{\% Compute ELBO (Eq.~7)}}
+        \STATE $\mathcal{L}_{\text{recon}} \leftarrow -\sum_{i=1}^{T} \log p(y_i \mid \tilde{x}(t_i))$
+        \STATE $\mathcal{L}_{\text{KL}_0} \leftarrow D_{\text{KL}}\big(\mathcal{N}(\mu_\phi, \sigma^2_\phi) \;\|\; P_0\big)$
+        \STATE $\mathcal{L}_{\text{KL}_\tau} \leftarrow \text{KL}_{\text{path}}$ \hfill $\triangleright$ Path-wise KL via Girsanov (Eq.~6)
+        \STATE $\mathcal{L} \leftarrow \mathcal{L}_{\text{recon}} + \lambda(\text{epoch}) \cdot (\mathcal{L}_{\text{KL}_0} + \mathcal{L}_{\text{KL}_\tau})$
+        \STATE Update $(\theta, \phi) \leftarrow (\theta, \phi) - \eta \nabla_{(\theta,\phi)} \mathcal{L}$
+    \ENDFOR
+\ENDFOR
+\RETURN $\theta, \phi$
+\end{algorithmic}
+\end{algorithm}

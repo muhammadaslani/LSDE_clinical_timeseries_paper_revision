@@ -1,0 +1,58 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% Remove default indentation
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% Header with your information
+\begin{flushleft}
+Prof. dr. Marcel van Gerven \\
+Department of Machine Learning and Neural Computing \\
+Donders Institute for Brain, Cognition and Behaviour\\
+Radboud University, Thomas van Aquinostraat 4
+6525 GD Nijmegen, the Netherlands\\
+marcel.vangerven@donders.ru.nl
+\end{flushleft}
+
+\vspace{1em}
+
+% Date
+\begin{flushleft}
+\today
+\end{flushleft}
+
+\vspace{1em}
+
+% Salutation
+Dear Editor,
+
+We are pleased to submit our manuscript entitled \textbf{``Generative Modeling of Clinical Timeseries via Latent Stochastic Differential Equations''} for consideration for publication in the \textit{Journal of Biomedical Informatics}. This work addresses critical challenges in clinical time series modeling and treatment effect estimation, areas central to advancing data-driven healthcare and personalized medicine. Given the \textit{Journal of Biomedical Informatics}' focus on innovative computational methods for healthcare applications, we believe our manuscript aligns well with the journal's scope and mission.
+
+Clinical time series data present fundamental challenges for predictive modeling: measurements are irregularly sampled, frequently incomplete, and noisy. We propose a probabilistic framework based on latent stochastic differential equations that explicitly models the continuous-time, stochastic nature of disease progression and treatment response. By integrating variational inference with neural SDEs, our approach learns patient-specific dynamics from partial observations while quantifying prediction uncertainty---a critical capability for risk-aware clinical decision support.
+
+Our framework introduces a generative modeling paradigm that 
+unifies continuous-time dynamical systems, stochastic processes, 
+and modern deep learning for clinical timeseries modeling. We demonstrate its effectiveness on both synthetic and real-world datasets from pharmacokinetic-pharmacodynamic models of cancer treatment and intensive care units. The method achieves superior or competitive performance compared to the latent ODE and latent LSTM baseline models, with particular advantages in uncertainty quantification. Importantly, the framework maintains robust performance under realistic clinical conditions including various level of missing observations, irregularity and measurement noise. Beyond predictive accuracy, our approach provides well-calibrated confidence intervals that support treatment optimization and clinical decision-making.
+
+Thank you for considering our work for publication in the \textit{Journal of Biomedical Informatics}. We look forward to your response.
+
+\vspace{2em}
+
+% Closing
+Sincerely and on behalf of all authors,
+
+\vspace{1em}
+
+% Signature
+Prof. dr. Marcel van Gerven
+
+\end{document}
