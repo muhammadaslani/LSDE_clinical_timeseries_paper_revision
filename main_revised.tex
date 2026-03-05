@@ -48,6 +48,9 @@
 \usepackage{url}          % For better URL line breaks
 \usepackage{hyperref}     % For clickable links
 \usepackage{xurl}         % For breaking URLs at any character (optional but recommended)
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{soul}
 
 % Configure hyperref (add after \usepackage{hyperref})
 \hypersetup{
@@ -296,6 +299,57 @@ During training, both the generative and augmented SDEs are used jointly. For ea
 
 At inference time, the augmented SDE is no longer needed. To forecast future outcomes under a given treatment plan $v_{[\tau, \tau']}$, we sample an initial state $x(0) \sim \mathcal{P}_0$ and solve the generative SDE forward in time, conditioned only on the encoded treatment signal $u(t)$. Each solution yields one possible latent trajectory, which is mapped to the observation space through the decoder. By drawing multiple samples --- each with a different initial state and Wiener process realization --- we obtain a distribution over future trajectories, providing both point predictions and uncertainty estimates.
 
+
+
+\begin{algorithm}[t]
+\caption{Training procedure}
+\label{alg:training}
+\begin{algorithmic}[1]
+\REQUIRE Dataset $\mathcal{D} = \{\mathcal{S}^n\}_{n=1}^{N}$, number of epochs $E$, number of KL annealing cycles $C$
+\ENSURE Learned parameters $\theta$, $\phi$
+\FOR{epoch $= 1, \ldots, E$}
+    \STATE Update KL annealing weight $\beta$ according to cyclic schedule
+    \FOR{each mini-batch $\{\mathcal{S}^n\}$ from $\mathcal{D}$}
+        \STATE \textit{// Encode inputs}
+        \STATE Encode treatments: $u(t) \leftarrow \eta_\theta(\mathcal{V})$ via interpolation
+        \STATE Encode observations: $c(t) \leftarrow \sum_{i=1}^{T} \xi_\phi(y_i)\,\psi_i(t)$
+        \STATE Compute initial state: $\tilde{x}(0) \sim \mathcal{Q}_0 = \mathcal{N}(\alpha_\phi(\mathrm{y}_{1:c}),\, \beta_\phi(\mathrm{y}_{1:c}))$
+        \STATE \textit{// Solve augmented SDE forward in time}
+        \STATE $\tilde{x}(t) \leftarrow \text{SDESolve}\big(\nu_\phi(\tilde{x}, u, c),\; \sigma_\theta(\tilde{x}, u),\; \tilde{x}(0),\; [0, \tau]\big)$
+        \STATE \textit{// Compute ELBO}
+        \STATE Reconstruction: $\mathcal{L}_{\text{rec}} = \sum_{i=1}^{T} \log p(y_i \mid \lambda_\theta(\tilde{x}(t_i)))$
+        \STATE Initial state KL: $\mathcal{L}_{\text{init}} = D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0)$
+        \STATE Path KL: $\mathcal{L}_{\text{path}} = \int_0^\tau \frac{1}{2} \| \sigma_\theta^{-1}(\nu_\phi - \mu_\theta) \|^2 \, dt$
+        \STATE $\text{ELBO} = \mathcal{L}_{\text{rec}} - \beta \left( \mathcal{L}_{\text{init}} + \mathcal{L}_{\text{path}} \right)$
+        \STATE \textit{// Update parameters}
+        \STATE Update $\theta, \phi$ by $\nabla_{\theta, \phi} \text{ELBO}$ via stochastic gradient ascent
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{Inference and forecasting}
+\label{alg:inference}
+\begin{algorithmic}[1]
+\REQUIRE Learned parameters $\theta$, treatment plan $v_{[\tau, \tau']}$, number of Monte Carlo samples $K$
+\ENSURE Predicted trajectory distribution $\{\hat{y}^{(k)}(t)\}_{k=1}^{K}$ for $t \in [\tau, \tau']$
+\STATE Encode future treatments: $u(t) \leftarrow \eta_\theta(v_{[\tau, \tau']})$ via interpolation
+\FOR{$k = 1, \ldots, K$}
+    \STATE Sample initial state: $x^{(k)}(0) \sim \mathcal{P}_0$
+    \STATE Sample Wiener process: $W^{(k)}(t)$
+    \STATE \textit{// Solve generative SDE forward in time}
+	\STATE $x^{(k)}(t) \leftarrow \text{SDESolve}\big(\mu_\theta(x, u),\; \sigma_\theta(x, u),\; x^{(k)}(0),\; [\tau, \tau']\big)$
+    \STATE \textit{// Decode to observation space}
+    \STATE $\hat{y}^{(k)}(t) \leftarrow \lambda_\theta(x^{(k)}(t))$
+\ENDFOR
+\STATE \textit{// Aggregate samples for uncertainty quantification}
+\STATE Point prediction: $\hat{y}(t) = \frac{1}{K} \sum_{k=1}^{K} \hat{y}^{(k)}(t)$
+\STATE Predictive uncertainty: $\text{Var}(t) = \frac{1}{K-1} \sum_{k=1}^{K} (\hat{y}^{(k)}(t) - \hat{y}(t))^2$
+\end{algorithmic}
+\end{algorithm}
+
+
 \section{Experiments}
 We evaluated our proposed framework on three complementary datasets: two synthetic benchmarks — one derived from a pharmacokinetic–pharmacodynamic (PKPD) model of lung cancer tumor growth and another based on the Bergman Minimal Model of glucose-insulin dynamics, and a real-world ICU dataset. In all cases, the objective was to learn the underlying system dynamics and forecast patients' future trajectories. 
 This evaluation strategy allows us to assess performance under controlled conditions with known ground truth (synthetic data) and validate practical applicability in realistic clinical settings (real-world data).
@@ -425,7 +479,7 @@ The latent LSTM exhibited comparatively weaker performance, which can be attribu
 \end{small}
 \end{table}
 % Figure 1: Synthetic Dataset Plot
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=1.0\textwidth]{lsde_forecast_pkpd.png}
     \caption{Illustration of the synthetic PKPD dataset with latent SDE framework predictions. The figure shows three variables over a one-year simulation period: performance score (top), tumor size in unobserved latent space (middle), and cancer cell count (bottom). Blue circles indicate historical observations during the observation period, while orange circles with error bars show model predictions during the forecasting period. Vertical red lines indicate chemotherapy sessions, and vertical brown lines indicate radiotherapy sessions. The dashed black line separates the observation period (blue shaded) from the forecasting period (orange shaded). Shaded regions around predictions represent 95\% confidence intervals, demonstrating the model's uncertainty quantification capability.}
@@ -523,7 +577,7 @@ These robustness evaluations demonstrate that the latent SDE framework maintains
 In this task, we adopted a probabilistic forecasting approach where models predict Gaussian distributions $\mathcal{N}(\mu,\sigma^2))$ for each time point, rather than single-point predictions. This approach enables better uncertainty quantification, which is essential in high-stakes clinical decision-making. Moreover, we incorporated patient baseline covariates, including age, gender, and height into the observational data. These covariates were selected due to their established clinical relevance in predicting patient conditions within the ICU. 
 
 Similar to the synthetic data, we considered 50\% of the patient data (the first 24 hours of each patient's stay) as the observation period and aimed to predict the subsequent 50\% data (next 24 hours). Figure \ref{fig:icu_sample_trajectory} illustrates a sample patient trajectory from the ICU dataset, demonstrating the observation and prediction periods, alongside the latent SDE model predictions. The figure shows how the model captures the general trends in vital signs while providing uncertainty bands that reflect the inherent variability in physiological measurements.
-\begin{figure}[ht]
+\begin{figure}[!ht]
     \centering
     \includegraphics[width=1.0\textwidth]{lsde_forecast_icu.png}
     \caption{Sample ICU patient trajectories from the PhysioNet 2012 dataset. The figure shows three vital signs over 48 hours: heart rate (top), mean arterial pressure (middle), and body temperature (bottom). Blue circles represent observed measurements during the first 24 hours (observation period, blue shaded region), while orange circles show model predictions for the subsequent 24 hours (forecasting period, orange shaded region). Orange dashed lines indicate predicted mean values, and shaded regions represent 95\% confidence intervals. The vertical dashed line separates the observation and forecasting periods, demonstrating the model's ability to forecast vital signs with calibrated uncertainty estimates.}
@@ -574,9 +628,69 @@ This study is supported by the Radboud Healthy Data program, which is partially 
 
 \appendix
 \label{appndx}
+\section{Derivation of the evidence lower bound}
+\label{appndx:kl_derivation}
+
+In this appendix, we derive the evidence lower bound (ELBO) used to train our latent SDE framework. We first derive the path-wise KL divergence between the generative and augmented SDEs via Girsanov's theorem, and then combine it with the reconstruction and initial state terms to obtain the full ELBO.
+
+\subsection*{Path-wise KL divergence via Girsanov's theorem}
+
+Recall that the generative SDE defines the prior over latent trajectories:
+\begin{align}
+    \dd x(t) = \mu_\theta(x(t), u(t))\,\dd t + \sigma_\theta(x(t), u(t))\,\dd W(t),
+\end{align}
+and the augmented SDE defines the approximate posterior:
+\begin{align}
+    \dd \tilde{x}(t) = \nu_\phi(\tilde{x}(t), u(t), c(t))\,\dd t + \sigma_\theta(\tilde{x}(t), u(t))\,\dd W(t).
+\end{align}
+Both SDEs share the same diffusion coefficient $\sigma_\theta$. Let $\mathcal{P}_\tau$ and $\mathcal{Q}_\tau$ denote the path measures induced by the generative and augmented SDEs on $[0, \tau]$, respectively.
+
+Since the two SDEs differ only in their drift terms, Girsanov's theorem~\citep{girsanov1960transforming} provides the Radon--Nikodym derivative between the two measures. Define the drift discrepancy:
+\begin{equation}
+    \Delta(t) = \sigma_\theta(\tilde{x}(t), u(t))^{-1} \left( \nu_\phi(\tilde{x}(t), u(t), c(t)) - \mu_\theta(\tilde{x}(t), u(t)) \right).
+\end{equation}
+By Girsanov's theorem, the Radon--Nikodym derivative of $\mathcal{Q}_\tau$ with respect to $\mathcal{P}_\tau$ is:
+\begin{equation}
+    \frac{\dd \mathcal{Q}_\tau}{\dd \mathcal{P}_\tau} = \exp\left( -\frac{1}{2} \int_0^\tau \|\Delta(t)\|^2\,\dd t + \int_0^\tau \Delta(t)^\top \dd W(t) \right).
+    \label{eq:radon_nikodym}
+\end{equation}
+
+The KL divergence between the two path measures is defined as:
+\begin{equation}
+    D_{\mathrm{KL}}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau) = \mathbb{E}_{\mathcal{Q}_\tau} \left[ \log \frac{\dd \mathcal{Q}_\tau}{\dd \mathcal{P}_\tau} \right].
+\end{equation}
+Substituting Eq.~\eqref{eq:radon_nikodym}:
+\begin{equation}
+    D_{\mathrm{KL}}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau) = \mathbb{E}_{\mathcal{Q}_\tau} \left[ -\frac{1}{2} \int_0^\tau \|\Delta(t)\|^2\,\dd t + \int_0^\tau \Delta(t)^\top \dd W(t) \right].
+\end{equation}
+Under the measure $\mathcal{Q}_\tau$, the stochastic integral $\int_0^\tau \Delta(t)^\top \dd W(t)$ is a martingale with zero expectation~\citep{oksendal2003stochastic}. Therefore, this term vanishes and we obtain:
+\begin{equation}
+    D_{\mathrm{KL}}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau) = \mathbb{E}_{\tilde{x}} \left[ \int_0^\tau \frac{1}{2} \|\Delta(t)\|^2\,\dd t \right].
+    \label{eq:kl_path_appndx}
+\end{equation}
+
+\subsection*{Evidence lower bound}
+
+We now derive the ELBO on the marginal log-likelihood $\log p(\mathcal{Y} \mid \mathcal{V})$. Using the standard variational inference decomposition, the marginal log-likelihood can be written as:
+\begin{equation}
+    \log p(\mathcal{Y} \mid \mathcal{V}) = \mathbb{E}_{q_\phi(x \mid \mathcal{D})} \left[ \log \frac{p(\mathcal{Y}, x \mid \mathcal{V})}{q_\phi(x \mid \mathcal{D})} \right] + D_{\mathrm{KL}}(q_\phi(x \mid \mathcal{D}) \parallel p(x \mid \mathcal{Y}, \mathcal{V})).
+\end{equation}
+Since the KL divergence is non-negative, dropping it yields the lower bound:
+\begin{equation}
+    \log p(\mathcal{Y} \mid \mathcal{V}) \geq \mathbb{E}_{q_\phi(x \mid \mathcal{D})} \left[ \log \frac{p(\mathcal{Y}, x \mid \mathcal{V})}{q_\phi(x \mid \mathcal{D})} \right].
+\end{equation}
+
+The joint distribution factorizes as $p(\mathcal{Y}, x \mid \mathcal{V}) = p(\mathcal{Y} \mid x) \, p(x \mid \mathcal{V})$, where $p(x \mid \mathcal{V})$ is defined by the generative SDE through the initial distribution $\mathcal{P}_0$ and path measure $\mathcal{P}_\tau$, and $p(\mathcal{Y} \mid x) = \prod_{i=1}^{T} p(y_i \mid \lambda_\theta(x(t_i)))$ is the observation model. Similarly, the approximate posterior factorizes into the initial distribution $\mathcal{Q}_0$ and path measure $\mathcal{Q}_\tau$. Substituting and separating terms:
+\begin{align}
+    \log p(\mathcal{Y} \mid \mathcal{V}) &\geq \mathbb{E}_{q_\phi(x \mid \mathcal{D})} \left[ \log p(\mathcal{Y} \mid x) \right] - D_{\mathrm{KL}}(q_\phi(x \mid \mathcal{D}) \parallel p(x \mid \mathcal{V})) \nonumber \\
+    &= \mathbb{E}_{\tilde{x}} \left[ \sum_{i=1}^{T} \log p(y_i \mid \lambda_\theta(\tilde{x}(t_i))) \right] - D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0) - D_{\mathrm{KL}}(\mathcal{Q}_\tau \| \mathcal{P}_\tau),
+    \label{eq:elbo_appndx}
+\end{align}
+where in the last step we decomposed the KL divergence between the full posterior and prior into the initial state divergence $D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0)$ and the path divergence $D_{\mathrm{KL}}(\mathcal{Q}_\tau \| \mathcal{P}_\tau)$, which is computed via Eq.~\eqref{eq:kl_path_appndx}. The initial state KL term has a closed-form solution since both $\mathcal{Q}_0$ and $\mathcal{P}_0$ are Gaussian distributions. In practice, the path integral in Eq.~\eqref{eq:kl_path_appndx} is approximated using the Euler--Maruyama method, and the expectations are estimated via Monte Carlo sampling.
 \section{Data}
 \label{appndx:data}
-\subsection{Synthetic dataset}
+\subsection{Synthetic datasets}
+\subsubsection{Tumor growth PKPD model}
 \label{appndx:synthetic_dataset}
 In the following, we provide more details on the synthetic dataset generation using the lung cancer pharmacokinetic-pharmacodynamic (PKPD) model. This model is widely used in the literature to study the effects of chemotherapy and radiotherapy treatments on tumor growth~\citep{kacprzyk2024ode}. However, to achieve a more realistic simulation, we have expanded the model beyond tumor size to incorporate both immune system response and patient overall health status. These additions allow the model to capture not only the direct impact of treatments on the tumor but also their effects on immune system dynamics and the patient’s physiological condition, reflecting the complex interplay of factors that influence treatment outcomes in real clinical settings.
 
@@ -687,6 +801,62 @@ To classify the patient health status into performance scores, we defined a func
 Ultimately, we randomly dropped some time points from each trajectory to simulate irregularly sampled measurements (observations).
 We utilized the explained models to generate synthetic data, simulating the effects of treatments on cancer progression and patient health. The simulation covered a one-year period, with observations recorded weekly and treatments applied at individualized intervals, such as every 2 weeks for one patient or every 4 to 5 weeks for another patient. This approach allowed us to explore the dynamic responses to therapy while accounting for the temporal structure of the clinical interventions, aligning closely with real-world settings.
 
+\subsubsection{Bergman glucose--insulin model}
+\label{appndx:glucose_dataset}
+
+The second synthetic dataset was generated using an extended version of the Bergman Minimal Model of glucose--insulin regulation~\citep{bergman1979quantitative}. This model describes short-term glucose metabolism as a continuous-time dynamical system with four state variables: gut glucose amount $D(t)$, plasma glucose concentration $G(t)$, remote (interstitial) insulin action $X(t)$, and plasma insulin concentration $I(t)$. The system is driven by two external inputs: meal ingestion and exogenous insulin injections.
+
+The dynamics are governed by the following system of differential equations:
+\begin{align}
+    \frac{\dd D(t)}{\dd t} &= -k_{\text{abs}} \, D(t) + R_a(t) \label{eq:gut_eq} \\
+    \frac{\dd G(t)}{\dd t} &= -(p_1 + X(t))(G(t) - G_b) + k_{\text{abs}} \, D(t) \label{eq:glucose_eq} \\
+    \frac{\dd X(t)}{\dd t} &= -p_2 \, X(t) + p_3 \, (I(t) - I_b) \label{eq:remote_insulin_eq} \\
+    \frac{\dd I(t)}{\dd t} &= \gamma \max(G(t) - G_b, 0) - n \, (I(t) - I_b) + \frac{u_I(t)}{V_i} \label{eq:insulin_eq}
+\end{align}
+where $R_a(t)$ is the rate of glucose appearance from meal ingestion, modeled as a rectangular pulse of 30 minutes duration for each meal, and $u_I(t)$ is the exogenous insulin injection rate, modeled as a rectangular pulse of 1 minute duration per injection. The parameter $k_{\text{abs}}$ governs the gut absorption rate, $p_1$ represents glucose effectiveness (insulin-independent glucose uptake), $p_2$ and $p_3$ characterize the dynamics of remote insulin action, $\gamma$ is the pancreatic insulin secretion rate, $n$ is the insulin decay rate, $V_i$ is the insulin distribution volume, and $G_b$ and $I_b$ denote the basal glucose and insulin concentrations, respectively.
+
+To capture the inherent stochasticity of metabolic processes, we formulated the system as an SDE by adding state-dependent diffusion:
+\begin{align}
+    \dd \mathbf{x}(t) = f(\mathbf{x}(t), u(t)) \, \dd t + \sigma_p \sqrt{|\mathbf{x}(t)|} \, \dd W(t)
+    \label{eq:glucose_sde}
+\end{align}
+where $\mathbf{x}(t) = [D(t), G(t), X(t), I(t)]^\top$, $f$ denotes the deterministic dynamics from Eqs.~\eqref{eq:gut_eq}--\eqref{eq:insulin_eq}, and $\sigma_p$ is the process noise level.
+
+Plasma glucose concentration $G(t)$ is observed through noisy measurements mimicking continuous glucose monitor (CGM) readings:
+\begin{align}
+    G_{\text{obs}}(t) \sim \mathcal{N}(G(t), \sigma_{\text{obs}}^2)
+    \label{eq:glucose_obs}
+\end{align}
+with $\sigma_{\text{obs}} = 10$ mg/dL. The remaining states --- gut glucose amount, remote insulin action, and plasma insulin concentration --- are not directly observed, making this a partially observed system.
+
+To account for between-patient variability, all kinetic parameters were sampled from patient-specific distributions (Table~\ref{tab:glucose_parameters}). Additionally, each patient received an individualized meal and insulin schedule: meal times, meal doses, insulin bolus timing relative to meals, and a nightly basal insulin injection were all varied across patients to reflect realistic clinical heterogeneity.
+
+The simulation covered a 12-hour period for each patient, with glucose observations sampled every 10 minutes (CGM-like frequency). As with the PKPD dataset, we introduced irregular sampling by randomly removing some of observation time points from each trajectory.
+
+\begin{table}[h!]
+\centering
+\caption{Parameters for the Bergman Minimal Glucose Model. Kinetic parameters are sampled per patient to create between-subject variability.}
+\label{tab:glucose_parameters}
+\begin{small}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.5cm} c c >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Variable} & \textbf{Parameter} & \textbf{Distribution} & \textbf{Value} \\
+\midrule
+Gut absorption rate [1/min] & $k_{\text{abs}}$ & Normal & $0.035 \pm 0.008$ \\
+Glucose effectiveness [1/min] & $p_1$ & Normal & $0.028 \pm 0.005$ \\
+Remote insulin disappearance [1/min] & $p_2$ & Normal & $0.028 \pm 0.005$ \\
+Insulin-dependent glucose uptake [1/(min$\cdot \mu$U/mL)] & $p_3$ & Normal & $5 \times 10^{-5} \pm 1 \times 10^{-5}$ \\
+Insulin decay rate [1/min] & $n$ & Normal & $0.090 \pm 0.015$ \\
+Pancreatic secretion rate [$\mu$U/mL/min per mg/dL] & $\gamma$ & Normal & $0.006 \pm 0.001$ \\
+Insulin distribution volume [dL] & $V_i$ & Uniform & $[120, 160]$ \\
+Basal plasma glucose [mg/dL] & $G_b$ & Uniform & $[80, 100]$ \\
+Basal plasma insulin [$\mu$U/mL] & $I_b$ & Uniform & $[8, 15]$ \\
+Process noise level & $\sigma_p$ & Constant & $10^{-4}$ \\
+Observation noise [mg/dL] & $\sigma_{\text{obs}}$ & Constant & $10.0$ \\
+\bottomrule
+\end{tabularx}
+\end{small}
+\end{table}
 
 \subsection{Empirical dataset}
 \label{appndx:empirical_dataset}
@@ -778,14 +948,14 @@ This dataset was initially created for a global competition focused on predictin
 We employ different evaluation metrics tailored to the specific characteristics and distributions of each target variable in our datasets.
 These metrics assess both point prediction accuracy and the quality of uncertainty quantification, which are both essential for evaluating probabilistic forecasting models.
 
-\subsection{Synthetic dataset metrics} 
+\subsection{Synthetic datasets metrics} 
 For the discrete performance status variable (ECOG scores 0-5), we use two complementary metrics. First, accuracy (Acc) as the proportion of correctly classified performance status predictions, providing a straightforward measure of classification performance. Second, predictive entropy (PE), which measures the uncertainty in categorical predictions. For a predicted distribution $p(y \mid x)$, predictive entropy is defined as:
 \begin{align}
   \text{PE}(p) = -\sum_{y} p(y \mid x) \log p(y|x)  
 \end{align}
 where lower entropy values indicate more confident and accurate predictions, while higher entropy reflects greater uncertainty in the categorical distribution.
 
-Since tumor volume represents a continuous variable we evaluate it using two other complementary metrics. First, the root mean square error (RMSE), which measures the average magnitude of prediction errors for the continuous valued variable (tumor volume). Second, the continuous ranked probability score (CRPS), which evaluates the quality of probabilistic forecasts by comparing the predicted cumulative distribution function to the empirical distribution of observed outcomes. CRPS rewards both accurate point predictions and well-calibrated uncertainty estimates. For a Gaussian predictive distribution with mean $\mu$, standard deviation $\sigma$, and observation $y$:
+For continuous variables, tumor volume in the PKPD dataset and plasma glucose concentration in the glucose--insulin dataset, we evaluate using two complementary metrics. First, the root mean square error (RMSE), which measures the average magnitude of prediction errors for the continuous valued variable. Second, the continuous ranked probability score (CRPS), which evaluates the quality of probabilistic forecasts by comparing the predicted cumulative distribution function to the empirical distribution of observed outcomes. CRPS rewards both accurate point predictions and well-calibrated uncertainty estimates. For a Gaussian predictive distribution with mean $\mu$, standard deviation $\sigma$, and observation $y$:
     \begin{align}
             \text{CRPS}(\mu, \sigma, y) = \sigma \left[ \frac{1}{\sqrt{\pi}} - 2\phi\left( \frac{y - \mu}{\sigma} \right) - \frac{y - \mu}{\sigma} \left( 2\Phi\left( \frac{y - \mu}{\sigma} \right) - 1 \right) \right]
     \end{align}
