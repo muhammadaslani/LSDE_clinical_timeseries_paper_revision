@@ -1,4 +1,3 @@
-
 % Response to Reviewers
 % Copy this into a new .tex file in Overleaf
 
@@ -47,13 +46,12 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here: Explain that you have made code publicly available, where it is hosted, what it includes, etc.]}
+We thank the reviewer for this comment. We have made the complete implementation publicly available at \texttt{[GitHub URL]}. The repository includes all model implementations, data generation scripts for both synthetic datasets, training configurations, and experiment code. The framework is implemented in Julia using Lux.jl for neural network components and DifferentialEquations.jl for SDE solvers. A code availability statement has been added to the manuscript.
 
 \textbf{Changes in manuscript:}
-\begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
-\item \textcolor{blue}{Supplementary Material: [Describe additions]}
-\end{itemize}
+Added code availability statement with repository link.
+
+
 
 \subsection*{Comment 1.b) Model Description Clarity}
 
@@ -61,11 +59,14 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have substantially revised the model description to address this concern. The former Sections 3 (Problem Formulation) and 4 (Framework) have been merged into a single section titled "Latent Stochastic Differential Equation Framework" (now Section 3). The revised section follows a clearer structure: the opening text establishes the notation and problem setting, followed by two subsections. Section 3.1 (Generative Model) defines the latent SDE with explicit type signatures for all functions, introduces the treatment encoding from discrete inputs to a continuous-time control signal, and includes a formal observation model equation that was previously missing. Section 3.2 (Training and Inference) introduces the augmented SDE as the approximate posterior, derives the path-wise KL divergence via Girsanov's theorem, and presents the ELBO. Importantly, the final paragraphs of this subsection now explicitly separate the training procedure — where both SDEs are used jointly — from the inference procedure, where only the generative SDE and decoder are needed. Two algorithm boxes (Algorithms 1 and 2) further summarize these distinct procedures.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
+\item Former Sections 3–4 merged into Section 3 with unified notation and clearer structure.
+\item Added explicit observation model equation in Section 3.1, defining how latent states map to observations through the decoder.
+\item Added training vs. inference description at the end of Section 3.2.
+\item Added Algorithm 1 (Training) and Algorithm 2 (Inference).
 \end{itemize}
 
 \subsection*{Comment 1.c) Baseline Comparisons}
@@ -74,11 +75,18 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have addressed both aspects of this comment. Regarding baselines, we added the latent controlled differential equation (CDE) as a fourth baseline model. While the latent ODE conditions its vector field directly on the control inputs and integrates over time, the latent CDE drives its dynamics through integration over a control path constructed from the input signal. This distinction provides a different mechanism for incorporating treatment information into the latent dynamics. The addition enables comparison along three complementary axes: stochastic vs. deterministic dynamics (SDE vs. ODE/CDE), continuous vs. discrete time (ODE/SDE/CDE vs. LSTM), and path-driven vs. direct input conditioning (CDE vs. ODE). All baselines share the same encoder–decoder architecture to ensure fair comparison.
+Regarding hyperparameter tuning, we added an explicit statement in the Implementation Details section clarifying that no model-specific hyperparameter optimization was performed. All models share identical architectural choices (encoder, decoder, latent dimensionality, and training schedule), ensuring that observed performance differences are attributable to the latent dynamics formulation.
+Additionally, we clarified in Section 4 that all baseline models generate probabilistic forecasts through Monte Carlo sampling of the variational initial conditions at inference time, ensuring meaningful comparison of uncertainty quantification metrics. The key distinction is that the latent SDE additionally captures path-wise stochasticity through its diffusion term. We also acknowledge in the Discussion that alternative uncertainty quantification strategies such as MC-Dropout and Deep Ensembles represent complementary approaches worth investigating in future work.
+
+
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes]}
+\item Added latent CDE baseline throughout (Abstract, Introduction, Related Works, Experiments, Results, Discussion, Implementation Details).
+\item Added hyperparameter fairness statement in Implementation Details.
+\item Added clarification of probabilistic forecasting across all baselines in Section 4.
+\item Added discussion of alternative uncertainty methods in Discussion.
 \end{itemize}
 
 \subsection*{Comment 1.d) Clinical Interpretation of Uncertainty}
@@ -87,11 +95,11 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here: Reference the examples we discussed - sepsis prediction, diabetic retinopathy, glucose monitoring, etc.]}
+We agree that connecting the technical contribution to clinical practice strengthens the manuscript. We have added a paragraph in the Discussion section illustrating how uncertainty estimates can support clinical decision-making. The example considers two ICU patients with similar predicted mean heart rate trajectories but different confidence intervals. For the first patient, narrow confidence intervals suggest a stable course, while for the second, wide confidence intervals overlapping with clinically dangerous thresholds (e.g., sustained tachycardia above 120 bpm) indicate higher risk of deterioration. Although the point predictions are comparable, the uncertainty estimates reveal different risk profiles, directly informing decisions about monitoring intensity and preemptive intervention. This example is supported by recent literature emphasizing the role of uncertainty quantification in safe clinical decision support.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe specific changes - added Discussion section with clinical examples]}
+\item Added clinical uncertainty interpretation paragraph in Discussion with supporting references.
 \end{itemize}
 
 \subsection*{Comment 1.e) Minor Issues - Terminology Inconsistency}
@@ -100,11 +108,11 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have standardized the terminology throughout the manuscript to consistently use "time series" (two words) in all instances.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Throughout manuscript: [Standardized to ``time series'']}
+\item Standardized "time series" throughout the manuscript.
 \end{itemize}
 
 \newpage
@@ -113,15 +121,15 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \subsection*{Comment 2.1) Mathematical Notation Clarity}
 
-\textit{The mathematical formulation in Sections 3-4 is difficult to follow due to inconsistent and insufficiently defined notation. In particular, the relationships among treatment-related variables are unclear. For example, in the equation preceding Eq. (1), treatments appear to be described as a discrete-time sequence, but the definition does not clearly specify whether they are defined in discrete or continuous time.}
+\textit{The mathematical formulation in Sections 3-4 is difficult to follow due to inconsistent and insufficiently defined notation. In particular, the relationships among treatment-related variables are unclear. For example, in the equation preceding Eq. (1), treatments appear to be described as a discrete-time sequence, but the definition does not clearly specify whether they are defined in discrete or continuous time. This is only one example; there are several other notational ambiguities throughout the paper. Since the proposed probabilistic modeling framework is insightful, the authors should adopt a consistent set of strict notations and properly define each variable and function.}
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We thank the reviewer for this detailed feedback. We have comprehensively revised the mathematical presentation to address the notational ambiguities. The key changes are as follows. First, observations $\mathcal{Y} = \{(y_i, t_i)\}_{i=1}^{T}$ and treatments $\mathcal{V} = \{(v_j, s_j)\}_{j=1}^{L}$ are now explicitly defined as discrete-time indexed sets with their time stamps, making clear that the raw data is recorded at discrete, potentially irregular time points. We explicitly state that observation times $\{t_i\}$ and treatment times $\{s_j\}$ need not coincide. Second, we now clearly distinguish between the discrete treatment inputs $\mathcal{V}$ and the continuous-time control signal $u(t)$ obtained via encoding and interpolation. This resolves the ambiguity about whether treatments are defined in discrete or continuous time. Third, all neural network functions ($\mu_\theta$, $\sigma_\theta$, $\nu_\phi$, $\lambda_\theta$, $\xi_\phi$, $\eta_\theta$) are now formally defined with their input and output dimensions. Fourth, the patient superscript $n$ is introduced in the problem setup and formally dropped before the framework description to avoid notational clutter. Finally, the former Sections 3 and 4 have been merged into a single section to eliminate the redundant re-definitions of notation that occurred at the section boundary.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe comprehensive revision of notation]}
+\item Complete rewrite of the mathematical framework (now Section 3) with unified, consistent notation throughout.
 \end{itemize}
 
 \subsection*{Comment 2.2) Limited Baseline Comparisons}
@@ -130,12 +138,17 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have added the latent controlled differential equation (CDE) as a fourth baseline model. While the latent ODE conditions its vector field directly on the control inputs and integrates over time, the latent CDE drives its dynamics through integration over a control path constructed from the input signal. This addition enables comparison along three complementary axes: stochastic vs. deterministic dynamics (SDE vs. ODE/CDE), continuous vs. discrete time (ODE/SDE/CDE vs. LSTM), and path-driven vs. direct input conditioning (CDE vs. ODE). All baselines share the same encoder–decoder architecture and generate probabilistic forecasts through Monte Carlo sampling of variational initial conditions, ensuring meaningful comparison of uncertainty quantification metrics across all models.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe new baseline additions]}
+\item Added latent CDE baseline throughout (Abstract, Introduction, Related Works, Experiments, Results, Discussion, Implementation Details).
+
+\item All results tables updated to include CDE results.
+
 \end{itemize}
+
+
 
 \subsection*{Comment 2.3) Missing Algorithmic Descriptions}
 
@@ -143,12 +156,12 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have added two algorithm boxes to the main text at the end of Section 3.2. Algorithm 1 describes the training procedure, detailing how the observation encoder, augmented SDE, and generative SDE are used jointly to compute and maximize the ELBO. Algorithm 2 describes the inference and forecasting procedure, showing how only the generative SDE and decoder are needed to produce probabilistic predictions via Monte Carlo sampling. These algorithms complement the prose descriptions and make the distinction between training and inference procedures immediately visible.
+
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Added Algorithm 1: Training procedure]}
-\item \textcolor{blue}{Lines [X-Y]: [Added Algorithm 2: Inference/forecasting procedure]}
+\item Added Algorithm 1 (Training) and Algorithm 2 (Inference) in Section 3.2.
 \end{itemize}
 
 \subsection*{Comment 2.4) No Ablation Study}
@@ -157,12 +170,12 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We appreciate this suggestion. We note that our baseline comparison was deliberately designed to serve as an implicit ablation study that isolates the key architectural differences. Specifically, comparing the latent SDE against the latent ODE isolates the contribution of stochastic dynamics (the diffusion term), since the two models differ only in the presence of the diffusion component. Comparing against the latent LSTM isolates the contribution of the continuous-time formulation, as the LSTM operates in discrete time. Comparing against the latent CDE isolates the effect of path-wise stochasticity versus deterministic input-driven dynamics. Importantly, all models share the same encoder–decoder architecture, treatment encoding, and training schedule, so performance differences are attributable solely to the latent dynamics formulation. The results consistently show that adding stochastic dynamics (SDE vs. ODE/CDE) and continuous-time modeling (ODE/SDE/CDE vs. LSTM) both contribute to improved performance, with the combination in the latent SDE yielding the best results across all datasets and metrics.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Added ablation study results]}
-\item \textcolor{blue}{Table [X]: [Added ablation study table]}
+\item Added explicit discussion of the comparison design in Section 4, framing the baseline comparison as isolating the contributions of stochastic dynamics, continuous-time formulation, and input-driven dynamics.
+
 \end{itemize}
 
 \subsection*{Comment 2.5) Limited Experimental Scope}
@@ -171,11 +184,15 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have expanded the experimental evaluation by adding a second synthetic dataset based on the Bergman Minimal Model of glucose–insulin regulation. The framework is now evaluated on three complementary datasets: (i) a PKPD tumor growth model capturing long-term oncology treatment response with multiple interacting state variables, (ii) a glucose–insulin model capturing short-term metabolic regulation with different dynamical characteristics, and (iii) real-world ICU data from approximately 12,000 patients. The two synthetic datasets were deliberately chosen to span distinct physiological domains, time scales, and input types, allowing us to assess generalizability across different types of dynamical systems. Complete model equations, parameter distributions, and simulation details for the new dataset are provided in the Appendix.
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Lines [X-Y]: [Describe changes - added dataset or justified scope]}
+\item Added Bergman glucose–insulin dataset description in Section 4.
+\item Added glucose–insulin results table and analysis in the Results section.
+\item Added full model specification, parameter table, and simulation details in the Appendix.
+\item Updated Abstract, Introduction, and Discussion to reflect the expanded evaluation.
+
 \end{itemize}
 
 \subsection*{Comment 2.6) Missing Derivation}
@@ -184,30 +201,16 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \textbf{Response:}
 
-\textcolor{blue}{[Your response here]}
+We have added a complete derivation of the evidence lower bound in a new appendix section (Appendix A). The derivation proceeds in two steps. First, we apply Girsanov's theorem to obtain the Radon–Nikodym derivative between the path measures of the generative and augmented SDEs, which yields the tractable path-wise KL divergence after taking expectations — the stochastic integral term vanishes due to the martingale property. Second, we combine this path-wise KL divergence with the reconstruction term and the initial state KL divergence using the standard variational inference decomposition to arrive at the ELBO. The main text now includes a forward reference to this appendix.
+
+
 
 \textbf{Changes in manuscript:}
 \begin{itemize}
-\item \textcolor{blue}{Appendix [X]: [Added derivation]}
+\item Added Appendix A: Derivation of the evidence lower bound.
 \end{itemize}
 
 \newpage
-
-\section*{MANDATORY SUBMISSION REQUIREMENTS}
-
-\subsection*{Statement of Significance}
-We have added the required Statement of Significance table at the end of the Introduction section (page [X]).
-
-\subsection*{Graphical Abstract}
-We have created a graphical abstract that visually summarizes our framework (submitted as a separate file).
-
-\subsection*{Line Spacing}
-The revised manuscript uses 1.5 line spacing throughout.
-
-\subsection*{Source Files}
-We are submitting the manuscript source files in LaTeX format along with all figure files in TIF/EPS format as requested.
-
-\vspace{1cm}
 
 We thank the reviewers again for their valuable feedback, which has significantly improved our manuscript. We believe these revisions have addressed all concerns and strengthened the contribution of our work.
 
