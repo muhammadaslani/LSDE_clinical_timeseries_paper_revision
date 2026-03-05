@@ -208,96 +208,96 @@ Recognizing the limitation of deterministic models, researchers have begun combi
 \subsection{Our contribution}
 Building on these foundations, we propose a framework that integrates neural stochastic differential equations with a variational inference-based encoder-decoder architecture for modeling clinical time series in latent space. This approach enables continuous-time modeling of patient trajectories while capturing predictive uncertainty, thereby supporting more robust and data-driven decision-making in healthcare.
 
-\section{Problem formulation}
-Let $t=[0,\tau]$ be the observation time window during which patient status is observed through clinical measurements $y(t) \in \mathbb{R}^{d_y}$ (e.g., heart rate, tumor volume) which may be recorded at irregular time points. 
-Each patient $n \in \{1,\ldots,N\}$, may receive treatments $$U^n= \{u^n(t) \in \mathbb{R}^{d_u} \mid t \in [0,\tau] \}$$ administered at potentially irregular times which may differ from measurement time points. Additionally, each patient has baseline covariates $z \in \mathcal{Z}$ (e.g., age, BMI, sex, and disease subtype) which may influence both disease progression and treatment response. 
-Accordingly, we represent a group of $N$ patients as a set of continuous-time observational profiles: 
-\begin{align}
-    \mathcal{P}= \{P^n=(y^n(t), z^n, u^n(t)) \}_{n=1}^N 
-\end{align}
-where each $P^n$ denotes the observational record of the $n$-th patient, encompassing longitudinal outcomes, baseline covariates, and treatment history over time, collectively referred to as patient trajectories.
-
-Given the historical trajectory $P^n$ of patient $n$ up to time $\tau$, our goal is to estimate their potential outcomes $y^n(t; u_{[\tau, \tau']})$ for an arbitrary future sequence of treatments $U^n(t)$ over a future time window, $t \in [\tau, \tau']$, $
-\tau' > \tau$. 
-
-To account for the complex and uncertain nature of clinical data, we do not restrict our model to point estimates. Instead, we aim to learn the full conditional distribution over future outcomes:
-\begin{align}
-f: P^n \mapsto \mathbb{P}\left(y^n(t) \mid P^n, u^n_{[\tau, \tau']}\right)  \text{ for } t \in [\tau, \tau']\,,
-\end{align}
-allowing us to quantify predictive uncertainty, which is essential for reliable and risk-aware clinical decision-making.
-
-We assume that observations arise from an underlying latent state process $x^n(t) \in \mathbb{R}^{d_x}$, which evolves continuously over time, driven by the patient’s treatment history and baseline covariates. The observations $y^n(t)$ are treated as noisy emissions from this latent trajectory. This formulation naturally handles irregular sampling and enables continuous-time interpolation and extrapolation.
 
 
 \section{Latent stochastic differential equation framework}
+\label{sec:framework}
 
-We propose a probabilistic generative modeling framework that interprets patient time series data as partial observations of an underlying controlled stochastic dynamical system evolving in continuous time. 
-Specifically, we model the latent dynamics using neural stochastic differential equations, where both the drift and diffusion terms are parameterized by neural networks and conditioned on external inputs such as treatments. 
-This formulation enables the model to capture temporal uncertainty and variability in disease progression while flexibly handling irregularly-sampled measurements and interventions.
+We consider a cohort of $N$ patients, where each patient $n \in \{1, \ldots, N\}$ is observed over a time window $[0, \tau]$. During this period, clinical measurements are recorded at irregular time points, yielding a set of observations $\mathcal{Y}^n = \{(y^n_i, t_i)\}_{i=1}^{T}$, where each $y^n_i \in \mathbb{R}^{d_y}$ denotes the measurement (e.g., heart rate, tumor volume) at time $t_i$. The patient may also receive treatments recorded as $\mathcal{V}^n = \{(v^n_j, s_j)\}_{j=1}^{L}$, where each $v^n_j \in \mathbb{R}^{d_v}$ represents a treatment input (e.g., drug dosage) administered at time $s_j$. Note that the treatment times $\{s_j\}$ need not coincide with the observation times $\{t_i\}$, and both may be irregularly spaced. Additionally, each patient has static baseline covariates $z^n \in \mathbb{R}^{d_z}$ (e.g., age, sex, disease subtype) which may influence both disease progression and treatment response.
 
-\subsection{Architecture}
-An overview of the proposed framework is shown in Figure \ref{fig:lsde_arch}. The architecture follows a variational encoder–decoder structure, with a latent neural SDE acting as the generative model. This latent representation allows the model to operate in a lower-dimensional space while capturing complex, nonlinear, and uncertain clinical dynamics. 
-We employ two separate encoders: one for observations, which maps discrete-time measurements $Y^n$ and covariates $Z^n$ into the latent space, and another for treatments $A^n$, which encodes the sequence of interventions into a continuous-time control signal. This continuous-time representation of the treatments enables the generative model to flexibly incorporate interventions at arbitrary time points during simulation or forecasting.
+We represent the complete record of each patient as an observational profile:
+\begin{align}
+    \mathcal{S}^n = (\mathcal{Y}^n, \mathcal{V}^n, z^n),
+\end{align}
+and denote the full dataset as $\mathcal{D} = \{\mathcal{S}^n\}_{n=1}^{N}$.
 
-We treat the latent state evolution as a dynamical system governed by a stochastic differential equation $x:[0,\tau] \rightarrow \mathbb{R}^{d_x}$. The latent state is indirectly observed through discrete-time measurements ( e.g., clinical measurements), denoted by $\mathcal{Y}=\{\mathrm{y}_i\}_{i=1}^T$ where each $\mathrm{y}_i \in \mathbb{R}^{d_y}$ corresponds to an observation at time $t_i$ and $T$ is the last time point in measurements. The system may also be influenced by external inputs — in this case, treatments — represented as $\mathcal{V}=\{\mathrm{v}_i\}_{i=1}^T$, with each input $\mathrm{v}_i \in \mathbb{R}^{d_v}$ possibly occurring at different times than the observations.
-Once the system dynamics are modeled in the latent space using neural SDEs, an observation decoder is used to project the latent trajectories back into the observational space. The resulting latent SDE model is equivalent to a continuous-time stochastic state space model which enables simulation of future outcomes under new treatment plans and provides uncertainty estimates through stochastic sampling.
+Given the observational profile $\mathcal{S}^n$ up to time $\tau$, our goal is to learn the full conditional distribution over future outcomes under a given treatment plan:
+\begin{align}
+    p\left(y^n(t) \mid \mathcal{S}^n, v_{[\tau, \tau']}\right) \quad \text{for } t \in [\tau, \tau'],
+\end{align}
+where $v_{[\tau, \tau']}$ denotes the future treatment schedule. This probabilistic formulation enables uncertainty quantification, which is essential for risk-aware clinical decision-making.
 
- \begin{figure}[ht]
-     \centering
- \includegraphics[width=1.0\textwidth]{lsde_arch.png}
-     \caption{Architecture of the latent SDE framework for time series modeling with external inputs. The model consists of three main components: (1) Data encoders that transform external inputs and observations into latent representations; (2) A latent space containing both a generative SDE and an augmented SDE that evolve the hidden state conditioned on the encoded inputs; and (3) A decoder that reconstructs the output in the data space. The framework enables both reconstruction of observed data and forecasting of future values by leveraging the continuous-time dynamics learned through the coupled SDE system.}
-     \label{fig:lsde_arch}
- \end{figure}
+We assume that the observations arise from an underlying latent state process $x^n(t) \in \mathbb{R}^{d_x}$ that evolves continuously over time, driven by treatments and baseline covariates. The observations $y^n_i$ are treated as noisy, discrete-time emissions from this continuous latent trajectory. This formulation naturally handles irregular sampling and enables continuous-time forecasting. For notational simplicity, we drop the patient index $n$ in the remainder of the paper.
 
+
+In the following, we model each patient's latent trajectory as a continuous-time stochastic process governed by a neural SDE, and use variational inference to learn the model parameters from data. The framework consists of two components: a generative model that defines the prior over latent trajectories and maps them to observations (Section~\ref{sec:generative}), and a variational training and inference procedure based on an augmented SDE (Section~\ref{sec:training_inference}). An overview of the framework is shown in Figure~\ref{fig:lsde_arch}.
 
 \subsection{Generative model}
-We model latent states dynamics $x$ as a continuous-time stochastic process, specified as the solution to the following It\^o SDE: 
+\label{sec:generative}
+
+We model the latent state $x(t) \in \mathbb{R}^{d_x}$ as a continuous-time stochastic process, specified as the solution to the following It\^o SDE:
 \begin{equation}
-    \dd x(t)=\mu_\theta(x(t),u(t)) \dd t + \sigma_\theta(x(t),u(t)) \dd W(t) 
-    \label{ito_SDE}
+    \dd x(t) = \mu_\theta(x(t), u(t))\,\dd t + \sigma_\theta(x(t), u(t))\,\dd W(t),
+    \label{eq:ito_sde}
 \end{equation}
-where $x(0)$ is drawn from a learned distribution, $\mathcal{P}_0$, $\mu_\theta$ and $\sigma_\theta$ are drift and diffusion terms parameterized by neural networks with learnable parameters ($\theta$), $u(t)$ is the encoded control input (e.g., treatment signal), and $W(t)$ is a standard Wiener process.
+with initial condition $x(0) \sim \mathcal{P}_0$, where $\mathcal{P}_0$ is a learned prior distribution over the initial latent state. The functions $\mu_\theta: \mathbb{R}^{d_x} \times \mathbb{R}^{d_u} \to \mathbb{R}^{d_x}$ and $\sigma_\theta: \mathbb{R}^{d_x} \times \mathbb{R}^{d_u} \to \mathbb{R}^{d_x \times d_w}$ denote the drift and diffusion coefficients, both parameterized by neural networks with learnable parameters $\theta$. $W(t) \in \mathbb{R}^{d_w}$ is a standard Wiener process. The term $u(t) \in \mathbb{R}^{d_u}$ is a continuous-time control signal obtained by encoding and interpolating the discrete treatment inputs $\mathcal{V}$ via a treatment encoder $\eta_\theta$, enabling the model to condition the latent dynamics on interventions at arbitrary time points.
 
-This generative SDE induces a probability measure over the space of continuous trajectories, thereby implicitly defining the conditional distribution $p(x \mid \mathcal{V})$. By solving the SDE multiple times with different realizations of the initial condition $x(0) \sim \mathcal{P}_0$ and independent Wiener process paths $w(t)$, we can obtain samples from this distribution, each corresponding to a possible latent trajectory given the external inputs $\mathcal{V}$:
+This SDE induces a probability measure $\mathcal{P}_\tau$ over the space of continuous trajectories on $[0, \tau]$, implicitly defining the conditional distribution $p(x \mid \mathcal{V})$. Samples from this distribution are obtained by solving the SDE with different realizations of $x(0)$ and $W(t)$:
 \begin{align}
-    x(t)= \int^t_0 \mu_\theta(x(s), u(s)) \dd s +\int_0^t \sigma_\theta(x(s),u(s))\dd w(s) \,.
-    \label{sde_integral}
+    x(t) = x(0) + \int_0^t \mu_\theta(x(s), u(s))\,\dd s + \int_0^t \sigma_\theta(x(s), u(s))\,\dd W(s).
+    \label{eq:sde_integral}
 \end{align}
 
-\subsubsection{Variational inference}
-The exact posterior distribution $p(x \mid \mathcal{D})$, given data $\mathcal{D}$, is intractable to compute since computing the exact posterior involves integrating over all possible realizations of $w(t)$, which is computationally infeasible. To address this, we employ variational inference, which offers an efficient and scalable alternative. Specifically, we approximate the true posterior $p(x \mid \mathcal{D})$ using a tractable family of parameterized distributions $q_\phi(x \mid D)$, and optimize the parameters $\phi$ by maximizing a variational lower bound. 
-
-We define the approximate posterior distribution $q_\phi(x \mid \mathcal{D})$ via an augmented SDE~\citep{li2020scalable}. 
-An augmented SDE is an auxiliary SDE whose drift term is conditioned on the observed data, while its diffusion term $\sigma_\theta$ is shared with the generative SDE, ensuring that the KL divergence between the two stochastic processes remains tractable via Girsanov's theorem~\citep{girsanov1960transforming}. 
-Consequently, the approximate posterior path $\Tilde{x}:[0,\tau] \rightarrow \mathbb{R}^{d_x}$ is modeled as a solution to the following augmented SDE (omitting explicit time indices for clarity): 
+At each observation time $t_i$, the latent state is mapped to the observation space through a decoder $\lambda_\theta$, which parameterizes a modality-dependent observation distribution:
 \begin{align}
-    \dd \Tilde{x}=\nu_\phi(\Tilde{x},u,c)\dd t +\sigma_\theta(\Tilde{x},u)\dd W
-    \label{aug_sde}
+    y_i \sim p\left(\cdot \mid \lambda_\theta(x(t_i))\right),
+    \label{eq:obs_model}
 \end{align}
-where $\Tilde{x}(0)$ is sampled from a data-dependent distribution $\mathcal{Q}_0=\mathcal{N}(\alpha_\phi(\mathrm{y}_{1:c}), \beta_\phi(\mathrm{y}_{1:c}))$ with $\alpha_\phi$ and $\beta_\phi$ being neural networks that encode the initial observations $\mathrm{y}_{1:c}=\{\mathrm{y}_1,\ldots, \mathrm{y}_c\}$. To avoid over-parameterizing the initial condition and thereby diminishing the role of the learned dynamics, we restrict this encoding to only the first $c$ observations (with $t_c \leq t_n$) rather than the entire observation sequence~\citep{elgazzar2024generative}.
-The function $c(t)$ denotes a continuous-time context signal constructed from the observed data, providing additional conditioning for the variational drift term $v_\phi$. 
+where the form of $p$ depends on the data modality (e.g., Gaussian for continuous clinical measurements). This completes the generative process: the SDE produces continuous latent trajectories conditioned on treatments, and the decoder emits discrete-time observations with appropriate noise at each measurement time.
+\subsection{Training and inference}
+\label{sec:training_inference}
 
-Consequently, the Kullback–Leibler (KL) divergence between the path measures of the augmented ($\mathcal{Q}_\tau$) and generative  ($\mathcal{P}_\tau$) SDEs is given by:
+The true posterior distribution $p(x \mid \mathcal{D})$ over latent trajectories is intractable, as it requires integrating over all possible realizations of the Wiener process. We therefore employ variational inference, approximating the posterior with a parameterized distribution $q_\phi(x \mid \mathcal{D})$ and optimizing a variational lower bound.
+
+Following~\citet{li2020scalable}, we define the approximate posterior via an augmented SDE whose drift is additionally conditioned on the observed data:
+\begin{align}
+    \dd \tilde{x}(t) = \nu_\phi(\tilde{x}(t), u(t), c(t))\,\dd t + \sigma_\theta(\tilde{x}(t), u(t))\,\dd W(t),
+    \label{eq:aug_sde}
+\end{align}
+with initial condition $\tilde{x}(0) \sim \mathcal{Q}_0 = \mathcal{N}(\alpha_\phi(\mathrm{y}_{1:c}),\, \beta_\phi(\mathrm{y}_{1:c}))$. Here, $\alpha_\phi$ and $\beta_\phi$ are neural networks that encode the first $c$ observations $\mathrm{y}_{1:c} = \{y_1, \ldots, y_c\}$ into the mean and variance of the initial state distribution. We restrict the encoding to the first $c$ observations (with $t_c \ll t_T$) rather than the entire sequence to prevent over-parameterizing the initial condition and diminishing the role of the learned dynamics~\citep{elgazzar2024generative}. The drift $\nu_\phi: \mathbb{R}^{d_x} \times \mathbb{R}^{d_u} \times \mathbb{R}^{d_c} \to \mathbb{R}^{d_x}$ is a neural network with variational parameters $\phi$. The term $c(t) \in \mathbb{R}^{d_c}$ is a continuous-time context signal that provides the augmented SDE with information from the observations. It is constructed by encoding each observation $y_i$ through an observation encoder $\xi_\phi$ and interpolating the resulting representations to obtain a continuous path:
+\begin{align}
+    c(t) = \sum_{i=1}^{T} \xi_\phi(y_i)\,\psi_i(t),
+    \label{eq:context}
+\end{align}
+where $\{\psi_i\}_{i=1}^{T}$ are basis functions of the chosen interpolation scheme.
+
+Crucially, the diffusion term $\sigma_\theta$ is shared between the generative SDE~\eqref{eq:ito_sde} and the augmented SDE~\eqref{eq:aug_sde}. This ensures that the two processes differ only in their drifts, which is the key requirement for applying Girsanov's theorem~\citep{girsanov1960transforming} to obtain a tractable KL divergence between the path measures. Specifically, let $\mathcal{P}_\tau$ and $\mathcal{Q}_\tau$ denote the path measures induced by the generative and augmented SDEs, respectively. The KL divergence between these measures is then given by:
 \begin{equation}
-D_{\mathrm{KL}}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau) = \mathbb{E}_{\tilde{x}} \left[ \int_0^\tau \frac{1}{2} \left\| \Delta(\tilde{x}, u, c) \right\|^2 \, dt \right]
+    D_{\mathrm{KL}}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau) = \mathbb{E}_{\tilde{x}} \left[ \int_0^\tau \frac{1}{2} \left\| \Delta(\tilde{x}(t), u(t), c(t)) \right\|^2 \dd t \right],
+    \label{eq:kl_path}
 \end{equation}
-where \( \Delta(\tilde{x}, u, c) = \sigma_\theta(\tilde{x}, u)^{-1} \left( \nu_\phi(\tilde{x}, u, c) - \mu_\theta(\tilde{x}, u) \right) \) denotes the likelihood ratio drift, also known as the Radon--Nikodym derivative
-of the drift adjustment under Girsanov's theorem~\citep{kallenberg1997foundations}. 
-
-By minimizing this divergence, we ensure that generative SDE closely aligns with the augmented SDE in distribution. Simultaneously, we require that the latent trajectories produced by the augmented SDE, when decoded back into the data space, closely match the observed data. 
-Consequently, we can define an evidence lower bound (ELBO) on the conditional marginal likelihood of the observations as follows: 
+where
+\begin{equation}
+    \Delta(\tilde{x}, u, c) = \sigma_\theta(\tilde{x}, u)^{-1} \left( \nu_\phi(\tilde{x}, u, c) - \mu_\theta(\tilde{x}, u) \right)
+    \label{eq:delta}
+\end{equation}
+measures the normalized discrepancy between the posterior and prior drifts.
+Combining the expected log-likelihood of the observations with the KL regularization terms, we obtain the following evidence lower bound (ELBO) on the marginal log-likelihood:
 \begin{align}
-\log p(\mathcal{Y}, \mathcal{V}) \geq
-\mathbb{E}_{\tilde{x}} \left[
-\sum_{i=1}^{T} \log p(y_i \mid \tilde{x}_i) 
-\right]
-- D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0) - D_{\mathrm{KL}}(\mathcal{Q}_\tau \| \mathcal{P}_\tau) \, .
+    \log p(\mathcal{Y} \mid \mathcal{V}) \geq
+    \underbrace{\mathbb{E}_{\tilde{x}} \left[ \sum_{i=1}^{T} \log p(y_i \mid \lambda_\theta(\tilde{x}(t_i))) \right]}_{\text{reconstruction}}
+    - \underbrace{D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0)}_{\text{initial state}}
+    - \underbrace{D_{\mathrm{KL}}(\mathcal{Q}_\tau \| \mathcal{P}_\tau)}_{\text{path divergence}}.
+    \label{eq:elbo}
 \end{align}
-The first term on the right-hand side represents the expected log-likelihood of the observations given the latent states $\tilde{x}_i$ sampled from the augmented SDE. This term encourages the model to reconstruct the data accurately. The second and third are KL divergence terms that regularize the variational distribution: $D_{\mathrm{KL}}(\mathcal{Q}_0 \parallel \mathcal{P}_0)$ between the augmented and generative SDEs initial condition distributions, and $D_\mathrm{KL}(\mathcal{Q}_\tau \parallel \mathcal{P}_\tau)$ measures the divergence between the entire approximate posterior and prior trajectory distributions. 
-The model parameters  $\theta$ and the variational parameters $\phi$ are jointly optimized by maximizing the ELBO using stochastic gradient descent. Once trained, the generative component of the model can be used independently for downstream tasks such as forecasting future observations, reconstructing missing values, or simulating counterfactual scenarios under alternative treatment plans.
+The first term encourages accurate reconstruction of the observations under the approximate posterior. The second term regularizes the posterior initial state distribution $\mathcal{Q}_0$ towards the prior $\mathcal{P}_0$. The third term, computed via Eq.~\eqref{eq:kl_path}, regularizes the entire posterior trajectory distribution towards the prior. The derivation of this result via Girsanov's theorem is provided in Appendix~\ref{appndx:kl_derivation}.
+
+During training, both the generative and augmented SDEs are used jointly. For each training sample, the observation encoder processes the measurements to produce the initial state distribution $\mathcal{Q}_0$ and the context signal $c(t)$. The augmented SDE is then solved forward in time, producing latent trajectories $\tilde{x}(t)$ that are conditioned on the observed data through $c(t)$. Simultaneously, the generative SDE drift $\mu_\theta$ is evaluated along the same trajectory to compute the path-wise KL divergence via Eq.~\eqref{eq:kl_path}. The decoded trajectories are compared against the observations to compute the reconstruction term, and the full ELBO~\eqref{eq:elbo} is maximized with respect to both the model parameters $\theta$ and variational parameters $\phi$. To improve convergence, we apply cyclic annealing to the KL divergence terms, allowing the model to initially focus on reconstruction before gradually incorporating the regularization~\citep{fu2019cyclical}.
+
+At inference time, the augmented SDE is no longer needed. To forecast future outcomes under a given treatment plan $v_{[\tau, \tau']}$, we sample an initial state $x(0) \sim \mathcal{P}_0$ and solve the generative SDE forward in time, conditioned only on the encoded treatment signal $u(t)$. Each solution yields one possible latent trajectory, which is mapped to the observation space through the decoder. By drawing multiple samples --- each with a different initial state and Wiener process realization --- we obtain a distribution over future trajectories, providing both point predictions and uncertainty estimates.
 
 \section{Experiments}
-We evaluated our proposed framework on three complementary datasets: two synthetic benchmarks — one derived from a pharmacokinetic–pharmacodynamic (PKPD) model of lung cancer tumor growth and another based on the Bergman Minimal Model of glucose–insulin dynamics — and a real-world ICU dataset. In all cases, the objective was to learn the underlying system dynamics and forecast patients' future trajectories. 
+We evaluated our proposed framework on three complementary datasets: two synthetic benchmarks — one derived from a pharmacokinetic–pharmacodynamic (PKPD) model of lung cancer tumor growth and another based on the Bergman Minimal Model of glucose-insulin dynamics, and a real-world ICU dataset. In all cases, the objective was to learn the underlying system dynamics and forecast patients' future trajectories. 
 This evaluation strategy allows us to assess performance under controlled conditions with known ground truth (synthetic data) and validate practical applicability in realistic clinical settings (real-world data).
 
 We compared our latent SDE model against three established baselines representing different modeling approaches: (i) the latent ODE, a deterministic continuous-time model~\citep{rubanova2019latent}, (ii) the latent LSTM, representing the standard discrete-time approach commonly used for clinical time series, and (iii) the latent CDE, a continuous-time model that incorporates the input signal directly into the latent dynamics ~\citep{kidger2020neural}.
@@ -313,12 +313,11 @@ To evaluate our framework under controlled conditions with known ground truth, w
 \paragraph{Tumor growth PKPD model}
 The first dataset was constructed from a pharmacokinetic-pharmacodynamic (PKPD) model of lung cancer tumor growth \citep{kacprzyk2024ode}. This model simulates the effects of chemotherapy and radiotherapy on tumor dynamics and provides a controlled environment for evaluating treatment-response forecasting under partial observability. To create a more realistic clinical scenario, we extended the basic tumor growth model to include two additional state variables: immune system response and patient health status, each governed by separate differential equations that interact with tumor dynamics and treatment effects. This extension captures the complex interactions between tumor progression, immune function, and overall patient well-being observed in real clinical settings. The immune system responds to both tumor burden and treatment exposure, while patient health status reflects the combined impact of disease progression, immune regulation, and treatment toxicity. Observations were generated indirectly from the underlying states, mimicking realistic clinical measurement processes. This setup enables evaluation of treatment-effect forecasting in a stochastic, partially observed oncology setting.
 
-\paragraph{Bergman glucose–insulin model}
+\paragraph{Bergman glucose-insulin model}
 The second dataset was generated using the Bergman Minimal Model of glucose-insulin regulation \citep{bergman1979quantitative}. This model describes short-term glucose metabolism as a continuous-time dynamical system driven by plasma insulin concentration and delayed insulin action. Unlike the oncology setting of the PKPD model, this dataset focuses on physiological regulation rather than treatment-response dynamics. The system consists of coupled differential equations governing plasma glucose concentration, insulin kinetics, and insulin injections. Glucose measurements are observed intermittently, while internal insulin action remains partially latent. This setting provides a complementary evaluation scenario in which the model must capture nonlinear metabolic dynamics and predictive uncertainty in short-term forecasting.
 
 
-To further mimic realistic clinical data acquisition, we introduced irregular sampling in both synthetic datasets by randomly removing 20-80\% of time points from each trajectory. This procedure simulates the sparse, asynchronous, and partially observed measurement patterns commonly encountered in clinical practice. By varying the level of missingness, we systematically evaluated model performance under different degrees of data availability without generating separate datasets for each condition.
-Complete model equations, parameter distributions, and simulation details for both synthetic models are provided in \ref{appndx:synthetic_dataset}.
+To further mimic realistic clinical data acquisition, we introduced irregular sampling in both synthetic datasets by randomly removing some time points from each trajectory. This procedure simulates the sparse, asynchronous, and partially observed measurement patterns commonly encountered in clinical practice. Complete model equations, parameter distributions, and simulation details for both synthetic models are provided in \ref{appndx:synthetic_dataset}.
 
 
 \subsubsection{Empirical dataset}
