@@ -5,7 +5,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{enumitem}
 \usepackage{xcolor}
-\usepackage{soul}
+
 
 \begin{document}
 
@@ -24,17 +24,16 @@ We thank you and the reviewers for the thoughtful and constructive feedback on o
 
 \section*{SUMMARY OF MAJOR CHANGES}
 
-\textcolor{blue}{[Summarize 5-7 key changes here. Examples:]}
 
-\begin{itemize}
-\item Added [X] additional baseline methods for comprehensive comparison
-\item Conducted ablation studies to isolate contributions of key components
-\item Substantially revised Sections 3-4 to clarify mathematical notation
-\item Added Algorithm boxes for training and inference procedures
-\item Provided public code repository for reproducibility
-\item Added clinical interpretation discussion with literature examples
-\item \hl{Added mandatory items: Statement of Significance and Graphical Abstract}
-\end{itemize}
+\begin{enumerate}
+\item Substantially revised the mathematical framework (formerly Sections 3--4, now merged into Section 3) with unified notation, explicit function definitions, and a formal observation model.
+\item Added the latent CDE as a fourth baseline, enabling comparison along three axes: stochastic vs. deterministic dynamics, continuous vs. discrete time, and path-driven vs. direct input conditioning.
+\item Added a second synthetic dataset based on the Bergman Minimal Model of glucose--insulin regulation, expanding the evaluation to three complementary datasets.
+\item Added Algorithm boxes for training and inference procedures, clearly distinguishing the roles of the generative and augmented SDEs.
+\item Added a complete derivation of the evidence lower bound via Girsanov's theorem in a new appendix.
+\item Added clinical interpretation of uncertainty in the Discussion with a concrete ICU example.
+\item Made the code publicly available with a code availability statement.
+\end{enumerate}
 
 \newpage
 

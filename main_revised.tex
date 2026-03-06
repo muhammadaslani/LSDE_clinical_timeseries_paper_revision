@@ -235,6 +235,14 @@ We assume that the observations arise from an underlying latent state process $x
 
 In the following, we model each patient's latent trajectory as a continuous-time stochastic process governed by a neural SDE, and use variational inference to learn the model parameters from data. The framework consists of two components: a generative model that defines the prior over latent trajectories and maps them to observations (Section~\ref{sec:generative}), and a variational training and inference procedure based on an augmented SDE (Section~\ref{sec:training_inference}). An overview of the framework is shown in Figure~\ref{fig:lsde_arch}.
 
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1.0\textwidth]{lsde_arch.png}
+    \caption{Architecture of the latent SDE framework for time series modeling with external inputs. The model consists of three main components: (1) Data encoders that transform external inputs and observations into latent representations; (2) A latent space model containing both a generative SDE and an augmented SDE that evolve the hidden state conditioned on the encoded inputs; and (3) A decoder that reconstructs the output in the data space. The framework enables both reconstruction of observed data and forecasting of future values by leveraging the continuous-time dynamics learned through the coupled SDE system.}
+    \label{fig:lsde_arch}
+\end{figure}
+
+
 \subsection{Generative model}
 \label{sec:generative}
 
@@ -310,18 +318,14 @@ At inference time, the augmented SDE is no longer needed. To forecast future out
 \FOR{epoch $= 1, \ldots, E$}
     \STATE Update KL annealing weight $\beta$ according to cyclic schedule
     \FOR{each mini-batch $\{\mathcal{S}^n\}$ from $\mathcal{D}$}
-        \STATE \textit{// Encode inputs}
         \STATE Encode treatments: $u(t) \leftarrow \eta_\theta(\mathcal{V})$ via interpolation
         \STATE Encode observations: $c(t) \leftarrow \sum_{i=1}^{T} \xi_\phi(y_i)\,\psi_i(t)$
         \STATE Compute initial state: $\tilde{x}(0) \sim \mathcal{Q}_0 = \mathcal{N}(\alpha_\phi(\mathrm{y}_{1:c}),\, \beta_\phi(\mathrm{y}_{1:c}))$
-        \STATE \textit{// Solve augmented SDE forward in time}
         \STATE $\tilde{x}(t) \leftarrow \text{SDESolve}\big(\nu_\phi(\tilde{x}, u, c),\; \sigma_\theta(\tilde{x}, u),\; \tilde{x}(0),\; [0, \tau]\big)$
-        \STATE \textit{// Compute ELBO}
         \STATE Reconstruction: $\mathcal{L}_{\text{rec}} = \sum_{i=1}^{T} \log p(y_i \mid \lambda_\theta(\tilde{x}(t_i)))$
         \STATE Initial state KL: $\mathcal{L}_{\text{init}} = D_{\mathrm{KL}}(\mathcal{Q}_0 \| \mathcal{P}_0)$
         \STATE Path KL: $\mathcal{L}_{\text{path}} = \int_0^\tau \frac{1}{2} \| \sigma_\theta^{-1}(\nu_\phi - \mu_\theta) \|^2 \, dt$
         \STATE $\text{ELBO} = \mathcal{L}_{\text{rec}} - \beta \left( \mathcal{L}_{\text{init}} + \mathcal{L}_{\text{path}} \right)$
-        \STATE \textit{// Update parameters}
         \STATE Update $\theta, \phi$ by $\nabla_{\theta, \phi} \text{ELBO}$ via stochastic gradient ascent
     \ENDFOR
 \ENDFOR
@@ -338,12 +342,9 @@ At inference time, the augmented SDE is no longer needed. To forecast future out
 \FOR{$k = 1, \ldots, K$}
     \STATE Sample initial state: $x^{(k)}(0) \sim \mathcal{P}_0$
     \STATE Sample Wiener process: $W^{(k)}(t)$
-    \STATE \textit{// Solve generative SDE forward in time}
 	\STATE $x^{(k)}(t) \leftarrow \text{SDESolve}\big(\mu_\theta(x, u),\; \sigma_\theta(x, u),\; x^{(k)}(0),\; [\tau, \tau']\big)$
-    \STATE \textit{// Decode to observation space}
     \STATE $\hat{y}^{(k)}(t) \leftarrow \lambda_\theta(x^{(k)}(t))$
 \ENDFOR
-\STATE \textit{// Aggregate samples for uncertainty quantification}
 \STATE Point prediction: $\hat{y}(t) = \frac{1}{K} \sum_{k=1}^{K} \hat{y}^{(k)}(t)$
 \STATE Predictive uncertainty: $\text{Var}(t) = \frac{1}{K-1} \sum_{k=1}^{K} (\hat{y}^{(k)}(t) - \hat{y}(t))^2$
 \end{algorithmic}
@@ -365,7 +366,7 @@ For each dataset, we employed a temporal segmentation, where models used an init
 To evaluate our framework under controlled conditions with known ground truth, we generated two synthetic datasets based on mechanistic physiological models representing distinct clinical domains. These models were selected to assess the ability of the proposed framework to generalize across different types of dynamical systems, including long-term treatment response and short-term metabolic regulation.
 
 \paragraph{Tumor growth PKPD model}
-The first dataset was constructed from a pharmacokinetic-pharmacodynamic (PKPD) model of lung cancer tumor growth \citep{kacprzyk2024ode}. This model simulates the effects of chemotherapy and radiotherapy on tumor dynamics and provides a controlled environment for evaluating treatment-response forecasting under partial observability. To create a more realistic clinical scenario, we extended the basic tumor growth model to include two additional state variables: immune system response and patient health status, each governed by separate differential equations that interact with tumor dynamics and treatment effects. This extension captures the complex interactions between tumor progression, immune function, and overall patient well-being observed in real clinical settings. The immune system responds to both tumor burden and treatment exposure, while patient health status reflects the combined impact of disease progression, immune regulation, and treatment toxicity. Observations were generated indirectly from the underlying states, mimicking realistic clinical measurement processes. This setup enables evaluation of treatment-effect forecasting in a stochastic, partially observed oncology setting.
+The first dataset was constructed from a pharmacokinetic --pharmacodynamic (PKPD) model of lung cancer tumor growth \citep{kacprzyk2024ode}. This model simulates the effects of chemotherapy and radiotherapy on tumor dynamics and provides a controlled environment for evaluating treatment-response forecasting under partial observability. To create a more realistic clinical scenario, we extended the basic tumor growth model to include two additional state variables: immune system response and patient health status, each governed by separate differential equations that interact with tumor dynamics and treatment effects. This extension captures the complex interactions between tumor progression, immune function, and overall patient well-being observed in real clinical settings. The immune system responds to both tumor burden and treatment exposure, while patient health status reflects the combined impact of disease progression, immune regulation, and treatment toxicity. Observations were generated indirectly from the underlying states, mimicking realistic clinical measurement processes. This setup enables evaluation of treatment-effect forecasting in a stochastic, partially observed oncology setting.
 
 \paragraph{Bergman glucose-insulin model}
 The second dataset was generated using the Bergman Minimal Model of glucose-insulin regulation \citep{bergman1979quantitative}. This model describes short-term glucose metabolism as a continuous-time dynamical system driven by plasma insulin concentration and delayed insulin action. Unlike the oncology setting of the PKPD model, this dataset focuses on physiological regulation rather than treatment-response dynamics. The system consists of coupled differential equations governing plasma glucose concentration, insulin kinetics, and insulin injections. Glucose measurements are observed intermittently, while internal insulin action remains partially latent. This setting provides a complementary evaluation scenario in which the model must capture nonlinear metabolic dynamics and predictive uncertainty in short-term forecasting.
@@ -464,15 +465,15 @@ The latent LSTM exhibited comparatively weaker performance, which can be attribu
 \midrule
 \multirow{2}{*}{\makecell{Plasma glucose \\ concentration}} 
 & RMSE 
-& $\textbf{x.xx} \pm \textbf{x.xx}$ 
-& $x.xx \pm x.xx$ 
-& $x.xx \pm x.xx$ 
-& $x.xx \pm x.xx$ \\
+& $\textbf{0.0427} \pm \textbf{0.0003}$ 
+& $0.0466 \pm 0.0004$ 
+& $0.0457 \pm 0.0013$ 
+& $0.0573 \pm 0.0007$ \\
 & CRPS 
-& $\textbf{x.xx} \pm \textbf{x.xx}$ 
-& $x.xx \pm x.xx$ 
-& $x.xx \pm x.xx$ 
-& $x.xx \pm x.xx$ \\
+& $\textbf{0.0256} \pm \textbf{0.0005}$ 
+& $0.0270 \pm 0.0001$ 
+& $0.0267 \pm 0.0008$ 
+& $0.0468 \pm 0.0013$ \\
 \bottomrule
 \end{tabular}%
 }
